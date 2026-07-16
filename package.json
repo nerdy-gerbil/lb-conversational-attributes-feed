@@ -1,0 +1,10 @@
+{
+  "name": "lb-conversational-attributes-feed",
+  "version": "1.0.0",
+  "description": "Vercel proxy for Lily Blanche conversational attributes GMC feed",
+  "main": "api/feed.js",
+  "scripts": {
+    "dev": "vercel dev"
+  },
+  "dependencies": {}
+}
