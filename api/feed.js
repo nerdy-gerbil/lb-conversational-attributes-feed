@@ -12,10 +12,10 @@ export default async function handler(req, res) {
     }
     const xml = await response.text();
     
-    // Set headers for XML content and Vercel edge caching (1 hour)
+    // Set headers for XML content and Vercel edge caching (12 hours = twice a day)
     res.statusCode = 200;
     res.setHeader('Content-Type', 'text/xml; charset=utf-8');
-    res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=600');
+    res.setHeader('Cache-Control', 'public, s-maxage=43200, stale-while-revalidate=3600');
     res.end(xml);
   } catch (err) {
     res.statusCode = 500;
