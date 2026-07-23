@@ -1,6 +1,15 @@
 import Client from 'ssh2-sftp-client';
 
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
 export default async function handler(req, res) {
+  // Prevent Vercel Edge caching
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+
   if (process.env.CRON_SECRET && req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
@@ -22,8 +31,6 @@ export default async function handler(req, res) {
 
     const csvData = await response.text();
     const csvBuffer = Buffer.from(csvData, 'utf-8');
-
-    console.log(`Fetched feed CSV (${csvBuffer.length} bytes)`);
 
     const sftpConfig = {
       host: process.env.OPENAI_SFTP_HOST || 'sftp.commerce.openai.com',
