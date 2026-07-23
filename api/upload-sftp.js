@@ -20,8 +20,9 @@ export default async function handler(req, res) {
     console.log(`Fetching feed CSV from ${shopifyFeedUrl}...`);
     let csvData = "";
     let attempts = 0;
+    const maxFetchAttempts = 15;
     
-    while (attempts < 5) {
+    while (attempts < maxFetchAttempts) {
       attempts++;
       const response = await fetch(shopifyFeedUrl, {
         headers: { 
@@ -37,15 +38,15 @@ export default async function handler(req, res) {
         }
       }
 
-      console.log(`Shopify cold start/rate limit hit (attempt ${attempts}/5). Retrying in 3s...`);
-      await new Promise(r => setTimeout(r, 3000));
+      console.log(`Shopify cold start/rate limit hit (attempt ${attempts}/${maxFetchAttempts}). Retrying in 2.5s...`);
+      await new Promise(r => setTimeout(r, 2500));
     }
 
     if (!csvData) {
-      res.statusCode = 200;
+      res.statusCode = 500;
       return res.end(JSON.stringify({
         success: false,
-        error: 'Shopify Storefront rate limit active (returned error page instead of valid CSV). Upload skipped.'
+        error: `Failed to fetch valid CSV from Shopify after ${maxFetchAttempts} retries.`
       }));
     }
 
@@ -66,15 +67,15 @@ export default async function handler(req, res) {
     let uploadSuccess = false;
     let uploadAttempts = 0;
     
-    while (uploadAttempts < 3 && !uploadSuccess) {
+    while (uploadAttempts < 5 && !uploadSuccess) {
       uploadAttempts++;
       try {
         await sftp.put(csvBuffer, '/openai-product-feed.csv');
         uploadSuccess = true;
       } catch (uploadErr) {
         console.warn(`SFTP put attempt ${uploadAttempts} failed: ${uploadErr.message}`);
-        if (uploadAttempts >= 3) throw uploadErr;
-        await new Promise(r => setTimeout(r, 4000));
+        if (uploadAttempts >= 5) throw uploadErr;
+        await new Promise(r => setTimeout(r, 3000));
       }
     }
 
@@ -94,7 +95,7 @@ export default async function handler(req, res) {
       try { await sftp.end(); } catch (e) {}
     }
     console.error('Feed generation/SFTP error:', err.message);
-    res.statusCode = 200;
+    res.statusCode = 500;
     return res.end(JSON.stringify({
       success: false,
       error: err.message
