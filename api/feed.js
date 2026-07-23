@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     const csv = await response.text();
     
     res.statusCode = 200;
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('Cache-Control', 'public, s-maxage=43200, stale-while-revalidate=3600');
     res.end(csv);
   } catch (err) {
