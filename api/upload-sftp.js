@@ -14,7 +14,6 @@ export default async function handler(req, res) {
   }
 
   const shopifyFeedUrl = process.env.SHOPIFY_OPENAI_FEED_URL || "https://www.lilyblanche.com/pages/openai-product-feed";
-  const sftp = new Client();
 
   try {
     console.log(`Fetching feed CSV from ${shopifyFeedUrl}...`);
@@ -60,29 +59,30 @@ export default async function handler(req, res) {
       readyTimeout: 30000,
     };
 
-    console.log(`Connecting to SFTP server ${sftpConfig.host}...`);
-    await sftp.connect(sftpConfig);
-
-    console.log('Uploading openai-product-feed.csv to SFTP root...');
     let uploadSuccess = false;
     let uploadAttempts = 0;
+    const maxUploadAttempts = 8;
     
-    while (uploadAttempts < 5 && !uploadSuccess) {
+    while (uploadAttempts < maxUploadAttempts && !uploadSuccess) {
       uploadAttempts++;
+      const sftp = new Client();
       try {
+        console.log(`SFTP connect & upload attempt ${uploadAttempts}/${maxUploadAttempts}...`);
+        await sftp.connect(sftpConfig);
         await sftp.put(csvBuffer, '/openai-product-feed.csv');
+        await sftp.end();
         uploadSuccess = true;
       } catch (uploadErr) {
-        console.warn(`SFTP put attempt ${uploadAttempts} failed: ${uploadErr.message}`);
-        if (uploadAttempts >= 5) throw uploadErr;
-        // Reconnect SFTP session before retry if concurrent modification blob error occurs
         try { await sftp.end(); } catch (e) {}
-        await new Promise(r => setTimeout(r, 4000));
-        await sftp.connect(sftpConfig);
+        console.warn(`SFTP upload attempt ${uploadAttempts} failed: ${uploadErr.message}`);
+        if (uploadAttempts >= maxUploadAttempts) throw uploadErr;
+        // Exponential backoff (5s, 8s, 11s...) to allow Azure Blob read lock to clear
+        const backoffMs = 5000 + (uploadAttempts * 3000);
+        console.log(`Waiting ${backoffMs}ms for OpenAI Azure Blob lock to release...`);
+        await new Promise(r => setTimeout(r, backoffMs));
       }
     }
 
-    await sftp.end();
     console.log('SFTP CSV upload completed successfully!');
 
     res.statusCode = 200;
@@ -94,9 +94,6 @@ export default async function handler(req, res) {
     }));
 
   } catch (err) {
-    if (sftp) {
-      try { await sftp.end(); } catch (e) {}
-    }
     console.error('Feed generation/SFTP error:', err.message);
     res.statusCode = 500;
     return res.end(JSON.stringify({
