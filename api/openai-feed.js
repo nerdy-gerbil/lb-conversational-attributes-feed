@@ -35,15 +35,17 @@ export default async function handler(req, res) {
     console.log(`Connecting to SFTP server ${sftpConfig.host}...`);
     await sftp.connect(sftpConfig);
 
-    console.log('Uploading uncompressed CSV feed to SFTP...');
+    console.log('Uploading CSV feed files to SFTP root...');
     await sftp.put(csvBuffer, '/openai-product-feed.csv');
+    await sftp.put(csvBuffer, '/feed.csv');
+    await sftp.put(csvBuffer, '/products.csv');
 
     await sftp.end();
-    console.log('SFTP CSV upload completed successfully!');
+    console.log('SFTP CSV uploads completed successfully!');
 
     return res.status(200).json({
       success: true,
-      message: 'Uncompressed OpenAI CSV Shopping Feed uploaded to SFTP successfully',
+      message: 'OpenAI CSV Shopping Feed uploaded to SFTP successfully (/openai-product-feed.csv, /feed.csv, /products.csv)',
       csvSizeBytes: csvBuffer.length,
       timestamp: new Date().toISOString()
     });
