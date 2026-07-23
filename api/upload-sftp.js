@@ -6,9 +6,11 @@ export const config = {
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Content-Type', 'application/json');
 
   if (process.env.CRON_SECRET && req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
-    return res.status(401).json({ error: 'Unauthorized' });
+    res.statusCode = 401;
+    return res.end(JSON.stringify({ error: 'Unauthorized' }));
   }
 
   const shopifyFeedUrl = process.env.SHOPIFY_OPENAI_FEED_URL || "https://www.lilyblanche.com/pages/openai-product-feed";
@@ -19,7 +21,6 @@ export default async function handler(req, res) {
     let response;
     let attempts = 0;
     
-    // Retry up to 3 times if Shopify hits rate limit
     while (attempts < 3) {
       response = await fetch(shopifyFeedUrl, {
         headers: { 
@@ -34,20 +35,20 @@ export default async function handler(req, res) {
     }
 
     if (!response.ok) {
-      res.setHeader('Content-Type', 'application/json');
-      return res.status(200).json({
+      res.statusCode = 200;
+      return res.end(JSON.stringify({
         success: false,
         error: `Shopify rate-limited (HTTP ${response.status}). Rate limit clear in ~2 minutes.`
-      });
+      }));
     }
 
     const csvData = await response.text();
     if (csvData.includes('local_rate_limited')) {
-      res.setHeader('Content-Type', 'application/json');
-      return res.status(200).json({
+      res.statusCode = 200;
+      return res.end(JSON.stringify({
         success: false,
         error: 'Shopify returned local_rate_limited text. Rate limit active.'
-      });
+      }));
     }
 
     const csvBuffer = Buffer.from(csvData, 'utf-8');
@@ -69,23 +70,23 @@ export default async function handler(req, res) {
     await sftp.end();
     console.log('SFTP CSV upload completed successfully!');
 
-    res.setHeader('Content-Type', 'application/json');
-    return res.status(200).json({
+    res.statusCode = 200;
+    return res.end(JSON.stringify({
       success: true,
       message: 'OpenAI CSV Shopping Feed uploaded to SFTP successfully',
       csvSizeBytes: csvBuffer.length,
       timestamp: new Date().toISOString()
-    });
+    }));
 
   } catch (err) {
     if (sftp) {
       try { await sftp.end(); } catch (e) {}
     }
     console.error('Feed generation/SFTP error:', err.message);
-    res.setHeader('Content-Type', 'application/json');
-    return res.status(200).json({
+    res.statusCode = 200;
+    return res.end(JSON.stringify({
       success: false,
       error: err.message
-    });
+    }));
   }
 }
