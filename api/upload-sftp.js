@@ -7,7 +7,6 @@ export const config = {
 };
 
 export default async function handler(req, res) {
-  // Prevent Vercel Edge caching
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
 
   if (process.env.CRON_SECRET && req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -42,17 +41,20 @@ export default async function handler(req, res) {
     console.log(`Connecting to SFTP server ${sftpConfig.host}...`);
     await sftp.connect(sftpConfig);
 
-    console.log('Uploading CSV feed files to SFTP root...');
+    // Clean up non-CSV legacy files on SFTP
+    try { await sftp.delete('/conversational-feed.xml'); } catch (e) {}
+    try { await sftp.delete('/conversational-feed.xml.gz'); } catch (e) {}
+
+    // Upload single canonical CSV feed
+    console.log('Uploading openai-product-feed.csv to SFTP root...');
     await sftp.put(csvBuffer, '/openai-product-feed.csv');
-    await sftp.put(csvBuffer, '/feed.csv');
-    await sftp.put(csvBuffer, '/products.csv');
 
     await sftp.end();
-    console.log('SFTP CSV uploads completed successfully!');
+    console.log('SFTP CSV upload completed successfully!');
 
     return res.status(200).json({
       success: true,
-      message: 'OpenAI CSV Shopping Feed uploaded to SFTP successfully (/openai-product-feed.csv, /feed.csv, /products.csv)',
+      message: 'OpenAI CSV Shopping Feed uploaded to SFTP successfully',
       csvSizeBytes: csvBuffer.length,
       timestamp: new Date().toISOString()
     });
