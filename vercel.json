@@ -6,7 +6,7 @@
       "destination": "/api/feed"
     },
     {
-      "source": "/openai-feed",
+      "source": "/sync-openai-feed",
       "destination": "/api/openai-feed"
     }
   ],
