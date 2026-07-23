@@ -18,36 +18,34 @@ export default async function handler(req, res) {
 
   try {
     console.log(`Fetching feed CSV from ${shopifyFeedUrl}...`);
-    let response;
+    let csvData = "";
     let attempts = 0;
     
-    while (attempts < 3) {
-      response = await fetch(shopifyFeedUrl, {
+    while (attempts < 5) {
+      attempts++;
+      const response = await fetch(shopifyFeedUrl, {
         headers: { 
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" 
         }
       });
 
-      if (response.status !== 429) break;
-      attempts++;
-      console.log(`Shopify 429 rate limited. Retrying attempt ${attempts}/3...`);
-      await new Promise(r => setTimeout(r, 2000));
+      if (response.ok) {
+        const text = await response.text();
+        if (!text.includes('local_rate_limited')) {
+          csvData = text;
+          break;
+        }
+      }
+
+      console.log(`Shopify cold start/rate limit hit (attempt ${attempts}/5). Retrying in 2.5s...`);
+      await new Promise(r => setTimeout(r, 2500));
     }
 
-    if (!response.ok) {
+    if (!csvData) {
       res.statusCode = 200;
       return res.end(JSON.stringify({
         success: false,
-        error: `Shopify rate-limited (HTTP ${response.status}). Rate limit clear in ~2 minutes.`
-      }));
-    }
-
-    const csvData = await response.text();
-    if (csvData.includes('local_rate_limited')) {
-      res.statusCode = 200;
-      return res.end(JSON.stringify({
-        success: false,
-        error: 'Shopify returned local_rate_limited text. Rate limit active.'
+        error: 'Shopify Storefront rate limit persistent after 5 retries. Please retry in 1 minute.'
       }));
     }
 
