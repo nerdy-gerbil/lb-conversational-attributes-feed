@@ -16,20 +16,40 @@ export default async function handler(req, res) {
 
   try {
     console.log(`Fetching feed CSV from ${shopifyFeedUrl}...`);
-    const response = await fetch(shopifyFeedUrl, {
-      headers: { 
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" 
-      }
-    });
+    let response;
+    let attempts = 0;
+    
+    // Retry up to 3 times if Shopify hits rate limit
+    while (attempts < 3) {
+      response = await fetch(shopifyFeedUrl, {
+        headers: { 
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" 
+        }
+      });
+
+      if (response.status !== 429) break;
+      attempts++;
+      console.log(`Shopify 429 rate limited. Retrying attempt ${attempts}/3...`);
+      await new Promise(r => setTimeout(r, 2000));
+    }
 
     if (!response.ok) {
-      return res.status(response.status).json({
+      res.setHeader('Content-Type', 'application/json');
+      return res.status(200).json({
         success: false,
-        error: `Shopify returned HTTP ${response.status} ${response.statusText}. Storefront rate limit active. Please retry in 1-2 minutes.`
+        error: `Shopify rate-limited (HTTP ${response.status}). Rate limit clear in ~2 minutes.`
       });
     }
 
     const csvData = await response.text();
+    if (csvData.includes('local_rate_limited')) {
+      res.setHeader('Content-Type', 'application/json');
+      return res.status(200).json({
+        success: false,
+        error: 'Shopify returned local_rate_limited text. Rate limit active.'
+      });
+    }
+
     const csvBuffer = Buffer.from(csvData, 'utf-8');
 
     const sftpConfig = {
@@ -49,6 +69,7 @@ export default async function handler(req, res) {
     await sftp.end();
     console.log('SFTP CSV upload completed successfully!');
 
+    res.setHeader('Content-Type', 'application/json');
     return res.status(200).json({
       success: true,
       message: 'OpenAI CSV Shopping Feed uploaded to SFTP successfully',
@@ -61,7 +82,8 @@ export default async function handler(req, res) {
       try { await sftp.end(); } catch (e) {}
     }
     console.error('Feed generation/SFTP error:', err.message);
-    return res.status(500).json({
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(200).json({
       success: false,
       error: err.message
     });
