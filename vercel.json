@@ -4,6 +4,16 @@
     {
       "source": "/feed",
       "destination": "/api/feed"
+    },
+    {
+      "source": "/openai-feed",
+      "destination": "/api/openai-feed"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/openai-feed",
+      "schedule": "0 3 * * *"
     }
   ]
 }
