@@ -31,7 +31,6 @@ export default async function handler(req, res) {
 
       if (response.ok) {
         const text = await response.text();
-        // Ensure response starts with valid CSV header row and not rate limit error
         if (text.startsWith('item_id,title,description,url')) {
           csvData = text;
           break;
@@ -63,8 +62,22 @@ export default async function handler(req, res) {
     console.log(`Connecting to SFTP server ${sftpConfig.host}...`);
     await sftp.connect(sftpConfig);
 
+    // If file is currently locked/being read by OpenAI ingestion worker, retry upload with backoff
     console.log('Uploading openai-product-feed.csv to SFTP root...');
-    await sftp.put(csvBuffer, '/openai-product-feed.csv');
+    let uploadSuccess = false;
+    let uploadAttempts = 0;
+    
+    while (uploadAttempts < 3 && !uploadSuccess) {
+      uploadAttempts++;
+      try {
+        await sftp.put(csvBuffer, '/openai-product-feed.csv');
+        uploadSuccess = true;
+      } catch (uploadErr) {
+        console.warn(`SFTP put attempt ${uploadAttempts} failed: ${uploadErr.message}`);
+        if (uploadAttempts >= 3) throw uploadErr;
+        await new Promise(r => setTimeout(r, 4000));
+      }
+    }
 
     await sftp.end();
     console.log('SFTP CSV upload completed successfully!');
