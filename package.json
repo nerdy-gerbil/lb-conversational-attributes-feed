@@ -1,10 +1,11 @@
 {
   "name": "lb-conversational-attributes-feed",
   "version": "1.0.0",
-  "description": "Vercel proxy for Lily Blanche conversational attributes GMC feed",
-  "main": "api/feed.js",
+  "description": "Vercel proxy and SFTP uploader for Lily Blanche OpenAI feed",
   "scripts": {
     "dev": "vercel dev"
   },
-  "dependencies": {}
+  "dependencies": {
+    "ssh2-sftp-client": "^11.0.0"
+  }
 }
