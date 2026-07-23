@@ -75,7 +75,10 @@ export default async function handler(req, res) {
       } catch (uploadErr) {
         console.warn(`SFTP put attempt ${uploadAttempts} failed: ${uploadErr.message}`);
         if (uploadAttempts >= 5) throw uploadErr;
-        await new Promise(r => setTimeout(r, 3000));
+        // Reconnect SFTP session before retry if concurrent modification blob error occurs
+        try { await sftp.end(); } catch (e) {}
+        await new Promise(r => setTimeout(r, 4000));
+        await sftp.connect(sftpConfig);
       }
     }
 
