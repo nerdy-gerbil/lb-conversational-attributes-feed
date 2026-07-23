@@ -31,21 +31,22 @@ export default async function handler(req, res) {
 
       if (response.ok) {
         const text = await response.text();
-        if (!text.includes('local_rate_limited')) {
+        // Ensure response starts with valid CSV header row and not rate limit error
+        if (text.startsWith('item_id,title,description,url')) {
           csvData = text;
           break;
         }
       }
 
-      console.log(`Shopify cold start/rate limit hit (attempt ${attempts}/5). Retrying in 2.5s...`);
-      await new Promise(r => setTimeout(r, 2500));
+      console.log(`Shopify cold start/rate limit hit (attempt ${attempts}/5). Retrying in 3s...`);
+      await new Promise(r => setTimeout(r, 3000));
     }
 
     if (!csvData) {
       res.statusCode = 200;
       return res.end(JSON.stringify({
         success: false,
-        error: 'Shopify Storefront rate limit persistent after 5 retries. Please retry in 1 minute.'
+        error: 'Shopify Storefront rate limit active (returned error page instead of valid CSV). Upload skipped.'
       }));
     }
 
