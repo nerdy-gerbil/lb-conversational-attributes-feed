@@ -31,7 +31,7 @@ export default async function handler(req, res) {
 
       if (response.ok) {
         const text = await response.text();
-        if (text.startsWith('item_id,title,description,url')) {
+        if (text.startsWith('item_id,title,description,url') || text.startsWith('"item_id","title","description","url"')) {
           csvData = text;
           break;
         }
@@ -62,7 +62,6 @@ export default async function handler(req, res) {
     console.log(`Connecting to SFTP server ${sftpConfig.host}...`);
     await sftp.connect(sftpConfig);
 
-    // If file is currently locked/being read by OpenAI ingestion worker, retry upload with backoff
     console.log('Uploading openai-product-feed.csv to SFTP root...');
     let uploadSuccess = false;
     let uploadAttempts = 0;
