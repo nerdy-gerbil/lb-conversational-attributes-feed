@@ -18,12 +18,15 @@ export default async function handler(req, res) {
     console.log(`Fetching feed CSV from ${shopifyFeedUrl}...`);
     const response = await fetch(shopifyFeedUrl, {
       headers: { 
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) OpenAI-Feed-Generator/1.0" 
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" 
       }
     });
 
     if (!response.ok) {
-      throw new Error(`Shopify Feed fetch failed: ${response.status} ${response.statusText}`);
+      return res.status(response.status).json({
+        success: false,
+        error: `Shopify returned HTTP ${response.status} ${response.statusText}. Storefront rate limit active. Please retry in 1-2 minutes.`
+      });
     }
 
     const csvData = await response.text();
