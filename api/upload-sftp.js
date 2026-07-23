@@ -1,9 +1,7 @@
 import Client from 'ssh2-sftp-client';
 
 export const config = {
-  api: {
-    bodyParser: false,
-  },
+  maxDuration: 60,
 };
 
 export default async function handler(req, res) {
@@ -36,16 +34,12 @@ export default async function handler(req, res) {
       port: parseInt(process.env.OPENAI_SFTP_PORT || '443', 10),
       username: process.env.OPENAI_SFTP_USER || 'oaiproductfeedprod.fdbc409cd9193b488a8b211774110db66b476141',
       password: process.env.OPENAI_SFTP_PASSWORD || 'TONvnxOBrcLsxG1wfNgsBOfm/+gmJIqF',
+      readyTimeout: 30000,
     };
 
     console.log(`Connecting to SFTP server ${sftpConfig.host}...`);
     await sftp.connect(sftpConfig);
 
-    // Clean up non-CSV legacy files on SFTP
-    try { await sftp.delete('/conversational-feed.xml'); } catch (e) {}
-    try { await sftp.delete('/conversational-feed.xml.gz'); } catch (e) {}
-
-    // Upload single canonical CSV feed
     console.log('Uploading openai-product-feed.csv to SFTP root...');
     await sftp.put(csvBuffer, '/openai-product-feed.csv');
 
