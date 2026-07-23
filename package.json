@@ -2,6 +2,7 @@
   "name": "lb-conversational-attributes-feed",
   "version": "1.0.0",
   "description": "Vercel proxy and SFTP uploader for Lily Blanche OpenAI feed",
+  "main": "api/upload-sftp.js",
   "scripts": {
     "dev": "vercel dev"
   },
