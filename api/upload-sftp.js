@@ -31,21 +31,22 @@ export default async function handler(req, res) {
 
       if (response.ok) {
         const text = await response.text();
-        if (text.startsWith('item_id,title,description,url') || text.startsWith('"item_id","title","description","url"')) {
+        const trimmed = text.trim();
+        if (trimmed.startsWith('item_id,title') || trimmed.startsWith('"item_id","title"')) {
           csvData = text;
           break;
         }
       }
 
-      console.log(`Shopify cold start/rate limit hit (attempt ${attempts}/${maxFetchAttempts}). Retrying in 2.5s...`);
-      await new Promise(r => setTimeout(r, 2500));
+      console.log(`Shopify cold start/rate limit hit (attempt ${attempts}/${maxFetchAttempts}). Retrying in 3s...`);
+      await new Promise(r => setTimeout(r, 3000));
     }
 
     if (!csvData) {
       res.statusCode = 500;
       return res.end(JSON.stringify({
         success: false,
-        error: `Failed to fetch valid CSV from Shopify after ${maxFetchAttempts} retries.`
+        error: `Failed to fetch valid CSV from Shopify after ${maxFetchAttempts} retries (Shopify rate limit active).`
       }));
     }
 
@@ -76,7 +77,6 @@ export default async function handler(req, res) {
         try { await sftp.end(); } catch (e) {}
         console.warn(`SFTP upload attempt ${uploadAttempts} failed: ${uploadErr.message}`);
         if (uploadAttempts >= maxUploadAttempts) throw uploadErr;
-        // Exponential backoff (5s, 8s, 11s...) to allow Azure Blob read lock to clear
         const backoffMs = 5000 + (uploadAttempts * 3000);
         console.log(`Waiting ${backoffMs}ms for OpenAI Azure Blob lock to release...`);
         await new Promise(r => setTimeout(r, backoffMs));
