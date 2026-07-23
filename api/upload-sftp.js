@@ -50,7 +50,13 @@ export default async function handler(req, res) {
       }));
     }
 
-    const csvBuffer = Buffer.from(csvData, 'utf-8');
+    const nonBlankLines = csvData
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
+
+    const cleanCsvData = nonBlankLines.join('\n') + '\n';
+    const csvBuffer = Buffer.from(cleanCsvData, 'utf-8');
 
     const sftpConfig = {
       host: process.env.OPENAI_SFTP_HOST || 'sftp.commerce.openai.com',
@@ -90,6 +96,7 @@ export default async function handler(req, res) {
       success: true,
       message: 'OpenAI CSV Shopping Feed uploaded to SFTP successfully',
       csvSizeBytes: csvBuffer.length,
+      productCount: nonBlankLines.length - 1,
       timestamp: new Date().toISOString()
     }));
 
