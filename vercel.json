@@ -1,18 +1,8 @@
 {
   "version": 2,
-  "rewrites": [
-    {
-      "source": "/feed",
-      "destination": "/api/feed"
-    },
-    {
-      "source": "/sync-openai-feed",
-      "destination": "/api/openai-feed"
-    }
-  ],
   "crons": [
     {
-      "path": "/api/openai-feed",
+      "path": "/api/upload-sftp",
       "schedule": "0 3 * * *"
     }
   ]
